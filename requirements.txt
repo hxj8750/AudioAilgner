@@ -1,0 +1,3 @@
+PySide6
+ffmpeg-python
+# montreal-forced-aligner 需要单独安装 
