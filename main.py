@@ -6,6 +6,7 @@ import sys
 from datetime import datetime
 
 from scripts.transcript import download_source
+from scripts.init import clear_folder
 
 import subprocess
 
@@ -59,7 +60,8 @@ class MainWindow(QMainWindow):
             ("提取音频", "从视频中提取音频", self.extract_audio),
             ("导入字幕", "将分行后的字幕文件导入到文件夹", self.import_subtitle),
             ("生成时间轴", "生成包含逐字时间轴的textgrid文件", self.generate_timeline),
-            ("生成字幕", "生成srt字幕文件", self.generate_subtitle)
+            ("生成字幕", "生成srt字幕文件", self.generate_subtitle),
+            ("初始化","删除所有临时文件", self.init)
         ]
         
         for text, tooltip, slot in buttons_info:
@@ -220,6 +222,18 @@ class MainWindow(QMainWindow):
             self.log_message(f"调整时间轴失败: {e}")
         else:
             self.log_message("调整时间轴完成,srt字幕文件生成完成")
+
+    def init(self):
+        paths = [
+            "./res",
+            "./temp",
+            "./training",
+            "D:/MFA/training"
+        ]
+        for path in paths:
+            ret = clear_folder(path)
+            self.log_message(ret)
+
 
 def main():
     app = QApplication(sys.argv)
