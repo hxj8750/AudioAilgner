@@ -5,6 +5,8 @@ from PySide6.QtGui import QFont, QColor, QIcon
 import sys
 from datetime import datetime
 
+from scripts.transcript import download_source
+
 import subprocess
 
 class MainWindow(QMainWindow):
@@ -142,16 +144,15 @@ class MainWindow(QMainWindow):
         self.status_text.append(f"<span style='color:#95a5a6'>[{timestamp}]</span> {message}")
     
     def download_video(self):
+        rets = []
         # 要求用户输入视频id，如果用户关闭输入框，则什么都不做
         video_id, ok = QInputDialog.getText(self, "输入视频ID", "请输入视频ID:")
         if ok and video_id:
             self.log_message(f"开始下载视频和字幕...{video_id}")
-            try:
-                subprocess.run(["python", self.download_video_script_path, video_id])
-            except Exception as e:
-                self.log_message(f"下载失败: {e}")
-            else:
-                self.log_message("下载完成")
+            rets = download_source(video_id)
+            for ret in rets:
+                self.log_message(ret)
+
     
     def extract_audio(self):
         self.log_message("开始提取音频...")
