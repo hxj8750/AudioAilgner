@@ -19,7 +19,7 @@ class MainWindow(QMainWindow):
         self.generate_subtitle_script_path = "./scripts/generate_srt.py"
         self.adjust_timeline_script_path = "./scripts/adjust.py"
 
-        self.setWindowTitle("视频处理工具")
+        self.setWindowTitle("SubSyncer")
         
         # 设置窗口大小和位置
         self.resize(800, 600)
@@ -48,7 +48,7 @@ class MainWindow(QMainWindow):
         left_layout.setContentsMargins(20, 30, 20, 30)
         
         # 添加标题
-        title = QLabel("视频处理工具")
+        title = QLabel("SubSyncer")
         title.setFont(QFont("Microsoft YaHei UI", 16))
         title.setAlignment(Qt.AlignLeft)
         title.setStyleSheet("color: white; margin-bottom: 20px;")
@@ -150,7 +150,6 @@ class MainWindow(QMainWindow):
         # 要求用户输入视频id，如果用户关闭输入框，则什么都不做
         video_id, ok = QInputDialog.getText(self, "输入视频ID", "请输入视频ID:")
         if ok and video_id:
-            self.log_message(f"开始下载视频和字幕...{video_id}")
             rets = download_source(video_id)
             for ret in rets:
                 self.log_message(ret)
@@ -233,6 +232,10 @@ class MainWindow(QMainWindow):
         for path in paths:
             ret = clear_folder(path)
             self.log_message(ret)
+        
+        # 删除__pycache__文件
+        ret = clear_folder('./scripts',True)
+        self.log_message(ret)
 
 
 def main():
