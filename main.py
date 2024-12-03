@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                             QPushButton, QLabel, QTextEdit, QFrame, QHBoxLayout, QInputDialog, QLineEdit)
+                             QPushButton, QLabel, QTextEdit, QFrame, QHBoxLayout, 
+                             QInputDialog, QLineEdit, QMessageBox)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QColor, QIcon
 import sys
@@ -144,6 +145,15 @@ class MainWindow(QMainWindow):
         """添加状态信息"""
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.status_text.append(f"<span style='color:#95a5a6'>[{timestamp}]</span> {message}")
+
+    def show_confirm_dialog(self, title, ask):
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle(title)
+        msg_box.setText(ask)
+        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg_box.setIcon(QMessageBox.Question)
+
+        return msg_box.exec()
     
     def download_video(self):
         rets = []
@@ -223,19 +233,21 @@ class MainWindow(QMainWindow):
             self.log_message("调整时间轴完成,srt字幕文件生成完成")
 
     def init(self):
-        paths = [
-            "./res",
-            "./temp",
-            "./training",
-            "D:/MFA/training"
-        ]
-        for path in paths:
-            ret = clear_folder(path)
+        result = self.show_confirm_dialog("确定要初始化吗","该操作将删除所有资源和临时文件")
+        if result == QMessageBox.Yes:
+            paths = [
+                "./res",
+                "./temp",
+                "./training",
+                "D:/MFA/training"
+            ]
+            for path in paths:
+                ret = clear_folder(path)
+                self.log_message(ret)
+            
+            # 删除__pycache__文件
+            ret = clear_folder('./scripts',True)
             self.log_message(ret)
-        
-        # 删除__pycache__文件
-        ret = clear_folder('./scripts',True)
-        self.log_message(ret)
 
 
 def main():
