@@ -10,6 +10,7 @@ from scripts.transcript import download_source
 from scripts.init import clear_folder
 
 import subprocess
+import re
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -59,7 +60,7 @@ class MainWindow(QMainWindow):
         buttons_info = [
             ("下载视频", "从网站下载视频和原始字幕", self.download_video),
             ("提取音频", "从视频中提取音频", self.extract_audio),
-            ("导入字幕", "将分行后的字幕文件导入到文件夹", self.import_subtitle),
+            ("自动换行", "自动分行后的字幕文件导入到文件夹", self.import_subtitle),
             ("生成时间轴", "生成包含逐字时间轴的textgrid文件", self.generate_timeline),
             ("生成字幕", "生成srt字幕文件", self.generate_subtitle),
             ("初始化","删除所有临时文件", self.init)
@@ -180,22 +181,126 @@ class MainWindow(QMainWindow):
             self.log_message(f"移除静音失败: {e}")
         else:
             self.log_message("移除静音完成")
+    
+    # 该函数有问题，len(text)是字符的长度，而不是单词的个数，有空再处理
+
+    def split_text(self,text):
+        # 将长文本分割为若干个单词的片段，平均每个单词有四个字符
+        length = len(text)
+        number = 1000
+        segs = []
+        seg_num = length // number
+        start = 0
+
+        # 如果文本长度低于1000，直接返回原始文本
+        if length <= number:
+            segs.append(text)
+            return segs
+
+        for i in range(1,seg_num+1):
+            end = start + number
+            # 如果到最后一段，end直接等于全文最后一个字符
+            if i == seg_num:
+                end = length
+            
+            #  如果text[end]位于一个单词的中间，就继续往后扫描
+            while text[end-1] != " " and text[end-1] != "\n":
+                end += 1
+            # 将该片段写入列表
+            segs.append([end,text[start:end]])
+            start = end # 如果end已经是全文最后的字符，则下一次循环不可能执行
+
+        return segs
+    
+    def replace_newlines_with_spaces(self,str):
+        # 将所有换行替换为空格
+        input_str = str
+        output_str = re.sub(r'\n',' ',input_str)
+
+        return output_str
+    
+    def clean_text(self,text):
+        # 将 '-' 替换为空格
+        text = text.replace('-', ' ')
+        # 将双空格替换为单空格（可以用 replace 或正则表达式）
+        while '  ' in text:
+            text = text.replace('  ', ' ')
+        # 将中文单引号替换为英文单引号
+        text = text.replace('‘', "'")
+        text = text.replace('’', "'")
+        return text
 
     def import_subtitle(self):
-        # 要求用户输入发行后的字幕文件
-        dialog = QInputDialog(self)
-        dialog.setWindowTitle("输入分行完成的字幕文本")
-        dialog.setLabelText("请直接粘贴分行后的字幕文本(推荐使用chatgpt分行):")
-        dialog.setOption(QInputDialog.UsePlainTextEditForTextInput)  # 使用多行文本输入框
-        dialog.resize(800, 600)  # 调整输入框大小
-        ok = dialog.exec()
-        subtitle_text = dialog.textValue()
-        if ok and subtitle_text:
-            self.log_message("开始导入字幕...")
-            # 将文本保存到./training/output.txt
-            with open("./training/output.txt", "w") as f:
-                f.write(subtitle_text)
-            self.log_message("导入字幕完成")
+        # 读取subtitles_en.txt
+        with open("./res/subtitles_en.txt",'r') as file:
+            content = file.read()
+        # 分段
+        segment = self.split_text(content)
+        # 去除换行
+        for i in range(0,len(segment)):
+            segment[i][1] = self.replace_newlines_with_spaces(segment[i][1])
+
+        # 多进程
+        processes = []
+        only_segment = []
+        # 将纯文本片段写入only_segment
+        for i in range(0,len(segment)):
+            only_segment.append(segment[i][1])
+        # 分配进程
+        for i, seg in enumerate(only_segment):
+            p = subprocess.Popen(["python","./scripts/punctuation_predict.py"],
+                                 stdin=subprocess.PIPE,
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE,
+                                 text=True
+                                 )
+            p.stdin.write(seg)
+            p.stdin.close()
+            processes.append((i,p))
+        
+        # 等待进程完成
+        results = []
+        for i,p in processes:
+            out,err = p.communicate()
+            results.append((i,out,err,p.returncode))
+        
+        text = ""
+        # 合并
+        for item in results:
+            text += item[1]
+
+        # 为text添加换行符
+        i = 0
+        num = 0
+        new_text = ""
+        while i < len(text):
+            if text[i] in ['.','?','!']:
+                new_text += '\n'
+                i += 2
+                num = 0
+            # 如果一行过长，则在逗号处分行
+            elif text[i] == ',':
+                if num < 25:
+                    new_text += text[i]
+                    i += 1
+                    num += 1      
+                else:
+                    new_text += '\n'
+                    i += 2
+                    num = 0           
+            else:
+                new_text += text[i]
+                i += 1
+                num += 1
+        
+        new_text = self.clean_text(new_text)
+
+        # 写入
+        with open("./training/output.txt",'w') as file:
+            file.write(new_text)
+        
+        self.log_message("done")
+
 
     def generate_timeline(self):
         self.log_message("开始生成时间轴...")
