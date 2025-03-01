@@ -236,6 +236,7 @@ class MainWindow(QMainWindow):
             content = file.read()
         # 分段
         segment = self.split_text(content)
+        print(segment)
         # 去除换行
         for i in range(0,len(segment)):
             segment[i][1] = self.replace_newlines_with_spaces(segment[i][1])
